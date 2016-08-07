@@ -1,5 +1,8 @@
+## Status: creates new stacks fine, but fails to update existing stacks
+
 import boto3
 import argparse
+import os
 # import json
 # import botocore.exceptions
 
@@ -36,10 +39,10 @@ def update_stack(sn):
         Parameters=cfn_stack_params,
         Capabilities=['CAPABILITY_IAM']
     )
-    print("Updating stacks")
 
 
 def create_or_update_stack(sn):
+    print "Create or update stack: " + sn
     stacks = cf.list_stacks(
         StackStatusFilter=[
             'CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE', 'UPDATE_ROLLBACK_IN_PROGRESS',
@@ -49,7 +52,7 @@ def create_or_update_stack(sn):
     )
     stack_exists = False
     for s in stacks['StackSummaries']:
-        print "Comparing against existing stack: " + str(s['StackName'])
+        debug("Comparing against existing stack: " + str(s['StackName']))
         if s['StackName'] == sn:
             if s['StackStatus'].endswith("COMPLETE"):
                 print("Stack already exists, updating")
@@ -80,7 +83,12 @@ def create_or_update_stack(sn):
                             time.sleep(10)
                             continue
     if stack_exists is False:
-        print("Stack name " + s + " does not exist, so I'll create a new one")
+        print("Stack name " + sn + " does not exist, so I'll create a new one")
         create_stack(sn)
+
+def debug(s):
+    # set HSQDEBUG=true in your environment to enable verbose logging
+    if str(os.getenv('HSQDEBUG')).upper() == 'TRUE':
+        print "DEBUG:  " + s
 
 main()
