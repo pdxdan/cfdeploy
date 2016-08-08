@@ -1,10 +1,7 @@
-# Summary: Wraps the process of deploying a CloudFormation template
-#
-# Status: Creates and updates for most situations. Waiters seem to be working.
-# To do: handle errors where CF template has not changed
+# Summary: Wraps the process of deploying an AWS CloudFormation template
 #
 # example testing:
-# python deploy_or_update_stack.py HelloBucket3 CFTemplateSamples/HelloBucket.template
+# python deploy_or_update_stack.py HelloBucket CFTemplateSamples/HelloBucket.template
 
 import boto3
 import argparse
@@ -77,7 +74,7 @@ def create_stack(sn):
         TemplateBody=cftemplatecontent(),
         Parameters=cfn_stack_params,
         Capabilities=['CAPABILITY_IAM'],
-        #? Open question: what Rollback behavior do I really want here?
+        #? Open question: is this really the Rollback behavior that I want?
         DisableRollback=True )
     cf.get_waiter('stack_create_complete').wait(StackName=sn)
 
