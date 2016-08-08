@@ -34,8 +34,7 @@ def create_or_update_stack(sn):
         elif status == 'ROLLBACK_IN_PROGRESS':
             cf.get_waiter('stack_create_complete').wait(StackName=sn)
             create_stack(sn)
-        elif status.startswith('UPDATE') and status.endswith('PROGRESS'):
-            # Handles UPDATE_IN_PROGRESS, UPDATE_COMPLETE_CLEANUP_IN_PROGRESS, UPDATE_ROLLBACK_IN_PROGRESS & UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS
+        elif status.startswith('UPDATE') and status.endswith('PROGRESS'): # Handles UPDATE_IN_PROGRESS, UPDATE_COMPLETE_CLEANUP_IN_PROGRESS, UPDATE_ROLLBACK_IN_PROGRESS & UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS
             cf.get_waiter('stack_update_complete').wait(StackName=sn)
             update_stack(sn)
         elif status == 'DELETE_IN_PROGRESS':
@@ -52,12 +51,13 @@ def stack_exists(sn):
         cf.describe_stacks(StackName=sn)
     except botocore.exceptions.ClientError as e:
         # AWS returns ValidationError when the stack doesn't exist
-        if str(e.response['Error']['Code']) == "ValidationError":
+        if ( str(e.response['Error']['Code'])    == "ValidationError" and
+             str(e.response['Error']['Message']).endswith("does not exist")
+            ):
             print "Stack name " + sn + " does not exist"
             debug("It looks like the stack does not exist because we received this error from AWS:\n  " + str(e))
             exists = False
-        else:
-            # Some other unexpected error happened
+        else:  # Some other unexpected error happened
             raise e
     else:
         exists = True
@@ -77,18 +77,30 @@ def create_stack(sn):
         TemplateBody=cftemplatecontent(),
         Parameters=cfn_stack_params,
         Capabilities=['CAPABILITY_IAM'],
-        #??? Open question: what Rollback behavior do I really want here?
+        #? Open question: what Rollback behavior do I really want here?
         DisableRollback=True )
     cf.get_waiter('stack_create_complete').wait(StackName=sn)
 
 
 def update_stack(sn):
     print "Updating stack: " + sn
-    cf.update_stack(
-        StackName=sn,
-        TemplateBody=cftemplatecontent(),
-        Parameters=cfn_stack_params,
-        Capabilities=['CAPABILITY_IAM'] )
+    try:
+        cf.update_stack(
+            StackName=sn,
+            TemplateBody=cftemplatecontent(),
+            Parameters=cfn_stack_params,
+            Capabilities=['CAPABILITY_IAM'] )
+    except botocore.exceptions.ClientError as e:
+        # AWS returns ValidationError when there aren't any changes in the stack to update
+        debug(str(e))
+        if ( str(e.response['Error']['Code'])    == "ValidationError" and
+             str(e.response['Error']['Message']) == "No updates are to be performed."
+            ):
+            debug("It looks like the template hasn't changed because we received this error from AWS:\n  " + str(e))
+            print "No changes detected for template. Skipping update."
+        else:  # Some other unexpected error happened
+            raise e
+
     cf.get_waiter('stack_update_complete').wait(StackName=sn)
 
 
