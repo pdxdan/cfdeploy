@@ -1,31 +1,28 @@
-## Status: Creates and updates for most situations. Waiters seem to be working.
-
+# Summary: Wraps the process of deploying a CloudFormation template
+#
+# Status: Creates and updates for most situations. Waiters seem to be working.
 # To do: handle errors where CF template has not changed
-
+#
+# example testing:
+# python deploy_or_update_stack.py HelloBucket3 CFTemplateSamples/HelloBucket.template
 
 import boto3
 import argparse
 import os
 import botocore.exceptions
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Wraps the process of deploying a CloudFormation template")
+parser.add_argument("name", help="name of the stack to deploy")
+parser.add_argument("template", help="local file containing the CloudFormation template")
+parser.add_argument("-v", "--verbose", action="store_true", help="more debug messages to stdout")
+args = parser.parse_args()
 cfn_stack_params = []
 
-cftemplate = "CFTemplateSamples/HelloBucket.template"
-cftemplatecontent = open(cftemplate, 'r').read()
 cf = boto3.client('cloudformation', region_name='us-west-2')
 
-def main():
-    # print "The CF template looks like this: \n" + cftemplatecontent
-    create_or_update_stack("HelloBucket3")
-
-    # print cf.waiter_names
-    # stack_exists('HelloBucket3')
-
-    # print cf.describe_stacks(StackName='HelloBucket33')
 
 def create_or_update_stack(sn):
-    print "Creating or updating stack: " + sn
+    print "Creating or updating stack for " + sn + " with file " + args.template
     if stack_exists(sn):
         status=cf.describe_stacks(StackName=sn)['Stacks'][0]['StackStatus']
         debug("Stack status = " + status)
@@ -56,7 +53,7 @@ def stack_exists(sn):
     except botocore.exceptions.ClientError as e:
         # AWS returns ValidationError when the stack doesn't exist
         if str(e.response['Error']['Code']) == "ValidationError":
-            print "stack name " + sn + " does not exist"
+            print "Stack name " + sn + " does not exist"
             debug("It looks like the stack does not exist because we received this error from AWS:\n  " + str(e))
             exists = False
         else:
@@ -64,15 +61,20 @@ def stack_exists(sn):
             raise e
     else:
         exists = True
-        print "stack name " + sn + " exists"
+        print "Stack name " + sn + " exists"
     return exists
 
 
+def cftemplatecontent():
+    content = open(args.template, 'r').read()
+    return content
+
+
 def create_stack(sn):
-    debug("attempting to create stack: " + sn)
+    print "Creating new stack: " + sn
     cf.create_stack(
         StackName=sn,
-        TemplateBody=cftemplatecontent,
+        TemplateBody=cftemplatecontent(),
         Parameters=cfn_stack_params,
         Capabilities=['CAPABILITY_IAM'],
         #??? Open question: what Rollback behavior do I really want here?
@@ -81,20 +83,18 @@ def create_stack(sn):
 
 
 def update_stack(sn):
-    debug("attempting to update stack: " + sn)
+    print "Updating stack: " + sn
     cf.update_stack(
         StackName=sn,
-        TemplateBody=cftemplatecontent,
+        TemplateBody=cftemplatecontent(),
         Parameters=cfn_stack_params,
         Capabilities=['CAPABILITY_IAM'] )
-    # waiter = cf.get_waiter('stack_update_complete')
-    # waiter.wait(StackName=sn)
     cf.get_waiter('stack_update_complete').wait(StackName=sn)
 
 
 def debug(s):
-    # set HSQDEBUG=true in your environment to enable verbose logging
-    if str(os.getenv('HSQDEBUG')).upper() == 'TRUE':
+    if args.verbose:
         print "DEBUG:  " + s
 
-main()
+
+create_or_update_stack(args.name)
