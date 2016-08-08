@@ -7,9 +7,11 @@ Applying CloudFormation templates is fairly easy with a single CLI call, but if 
 usage: deploy_or_update_stack.py [-h] [-v] name template
 
 positional arguments:
-  name           name of the stack to deploy
-  template       local file containing the CloudFormation template
+
+* name:     name  of the stack to deploy
+* template: local file containing the CloudFormation template
 
 optional arguments:
-  -h, --help     show this help message and exit
-  -v, --verbose  more debug messages to stdout
+
+*  -h, --help     show this help message and exit
+*  -v, --verbose  more debug messages to stdout
