@@ -17,7 +17,8 @@ cf = boto3.client('cloudformation', region_name='us-west-2')
 def main():
     # print "The CF template looks like this: \n" + cftemplatecontent
     # create_or_update_stack("LAMP-Single-Instance")
-    create_or_update_stack("HelloBucket")
+    # create_or_update_stack("HelloBucket3")
+    print cf.waiter_names
 
 
 def create_stack(sn):
@@ -33,6 +34,7 @@ def create_stack(sn):
 
 
 def update_stack(sn):
+    debug("attempting to update stack: " + sn)
     cf.update_stack(
         StackName=sn,
         TemplateBody=cftemplatecontent,
